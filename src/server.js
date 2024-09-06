@@ -1,5 +1,6 @@
 const express = require('express');
-const mysql = require('mysql2');
+const mysql = require('mysql');
+const bcrypt = require('bcryptjs');  // Importar o bcrypt
 
 const app = express();
 
@@ -10,7 +11,7 @@ app.use(express.json());
 const db = mysql.createConnection({
     host: 'localhost',     // Endereço do servidor MySQL
     user: 'root',          // Usuário do MySQL
-    password: '',          // Senha do MySQL (caso tenha)
+    password: 'lipetoni',  // Senha do MySQL (caso tenha)
     database: 'sistema'    // Nome do banco de dados
 });
 
@@ -42,13 +43,20 @@ app.post('/usuarios', (req, res) => {
             return res.status(400).json({ msg: 'Email já cadastrado' });
         }
 
-        // Inserir o novo usuário no banco de dados
-        const insertUserQuery = 'INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)';
-        db.query(insertUserQuery, [nome, email, senha], (err, result) => {
+        // Criptografar a senha antes de salvar no banco de dados
+        bcrypt.hash(senha, 10, (err, hash) => {
             if (err) {
-                return res.status(500).json({ msg: 'Erro ao cadastrar o usuário', error: err });
+                return res.status(500).json({ msg: 'Erro ao criptografar a senha', error: err });
             }
-            res.status(201).json({ msg: 'Usuário cadastrado com sucesso', userId: result.insertId });
+
+            // Inserir o novo usuário no banco de dados com a senha criptografada
+            const insertUserQuery = 'INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)';
+            db.query(insertUserQuery, [nome, email, hash], (err, result) => {
+                if (err) {
+                    return res.status(500).json({ msg: 'Erro ao cadastrar o usuário', error: err });
+                }
+                res.status(201).json({ msg: 'Usuário cadastrado com sucesso', userId: result.insertId });
+            });
         });
     });
 });
